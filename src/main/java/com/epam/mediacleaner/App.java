@@ -13,13 +13,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 
 public class App
 {
+	static private int count = 0;
+
 	private static final String QUERY = "SELECT P_LOCATION FROM MEDIAS";
 
 	public static void main(String[] args) throws SQLException, IOException
@@ -39,16 +46,18 @@ public class App
 		{
 			try (Statement st = connection.createStatement())
 			{
-				List<String> existFileNames = new ArrayList<>();
+				Set<String> knownFiles = new HashSet<>();
 				ResultSet resultSet = st.executeQuery(QUERY);
 				while (resultSet.next())
 				{
-					existFileNames.add(resultSet.getString(1));
+					knownFiles.add(resultSet.getString(1));
 				}
 
 				Path mediaPath = Paths.get(mediaRoot);
 
-				final List<Path> filesToRemove = new CopyOnWriteArrayList<>();
+				final Set<Path> existingFiles = new ConcurrentSkipListSet<>();
+
+				final int total = knownFiles.size();
 
 				Files.walkFileTree(mediaPath, new SimpleFileVisitor<Path>()
 				{
@@ -56,18 +65,15 @@ public class App
 					public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException
 					{
 						path = mediaPath.relativize(path);
-						String fileName = path.toString().replace("\\", "/");
-						boolean found = true;
-						if (!existFileNames.contains(fileName))
-						{
-							filesToRemove.add(path);
-							found = false;
-						}
-						System.out.println("File " + fileName + " - " + (found ? "FOUND" : "NOT_FOUND"));
+						existingFiles.add(path);
+						System.out.print('\r');
+						System.out.printf("%d/%d", ++count, total);
 
 						return FileVisitResult.CONTINUE;
 					}
 				});
+
+				Set<Path> filesToRemove = calculateFilesToRemove(knownFiles, existingFiles);
 
 				notifyAndRemoveFiles(filesToRemove);
 			}
@@ -75,7 +81,13 @@ public class App
 
 	}
 
-	private static void notifyAndRemoveFiles(List<Path> filesToRemove)
+	private static Set<Path> calculateFilesToRemove(Set<String> knownFiles, Set<Path> existingFiles)
+	{
+		return existingFiles.stream().filter(path -> !knownFiles.contains(path.toString())).collect(Collectors.toSet());
+	}
+
+
+	private static void notifyAndRemoveFiles(Collection<Path> filesToRemove)
 	{
 		Scanner sc = new Scanner(System.in);
 		while (true)
@@ -99,7 +111,7 @@ public class App
 		}
 	}
 
-	private static void removeFiles(List<Path> filesToRemove)
+	private static void removeFiles(Collection<Path> filesToRemove)
 	{
 		System.out.println("Removing files...");
 		filesToRemove.forEach(file -> {
