@@ -27,7 +27,7 @@ public class App
 {
 	static private int count = 0;
 
-	private static final String QUERY = "SELECT P_LOCATION FROM MEDIAS";
+	private static final String QUERY = "SELECT P_LOCATION FROM medias";
 
 	public static void main(String[] args) throws SQLException, IOException
 	{
@@ -64,7 +64,6 @@ public class App
 					@Override
 					public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException
 					{
-						path = mediaPath.relativize(path);
 						existingFiles.add(path);
 						System.out.print('\r');
 						System.out.printf("%d/%d", ++count, total);
@@ -73,7 +72,7 @@ public class App
 					}
 				});
 
-				Set<Path> filesToRemove = calculateFilesToRemove(knownFiles, existingFiles);
+				Set<Path> filesToRemove = calculateFilesToRemove(knownFiles, existingFiles, mediaPath);
 
 				notifyAndRemoveFiles(filesToRemove);
 			}
@@ -81,9 +80,9 @@ public class App
 
 	}
 
-	private static Set<Path> calculateFilesToRemove(Set<String> knownFiles, Set<Path> existingFiles)
+	private static Set<Path> calculateFilesToRemove(Set<String> knownFiles, Set<Path> existingFiles, Path mediaPath)
 	{
-		return existingFiles.stream().filter(path -> !knownFiles.contains(path.toString())).collect(Collectors.toSet());
+		return existingFiles.stream().filter(path -> !knownFiles.contains(mediaPath.relativize(path).toString())).collect(Collectors.toSet());
 	}
 
 
