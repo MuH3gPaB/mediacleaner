@@ -12,14 +12,11 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 
@@ -62,11 +59,12 @@ public class App
 				Files.walkFileTree(mediaPath, new SimpleFileVisitor<Path>()
 				{
 					@Override
-					public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException
+					public FileVisitResult visitFile(Path path, BasicFileAttributes attrs)
 					{
 						existingFiles.add(path);
 						System.out.print('\r');
-						System.out.printf("%d/%d", ++count, total);
+						int percent = calculateProgress(count, total);
+						System.out.printf("%d/%d (%d%%)", ++count, total, percent);
 
 						return FileVisitResult.CONTINUE;
 					}
@@ -80,9 +78,19 @@ public class App
 
 	}
 
+	private static int calculateProgress(double count, double total)
+	{
+		if (total == 0)
+		{
+			throw new UnsupportedOperationException("Cannot be defined for total 0");
+		}
+		return (int) (count / total) * 100;
+	}
+
 	private static Set<Path> calculateFilesToRemove(Set<String> knownFiles, Set<Path> existingFiles, Path mediaPath)
 	{
-		return existingFiles.stream().filter(path -> !knownFiles.contains(mediaPath.relativize(path).toString())).collect(Collectors.toSet());
+		return existingFiles.stream().filter(path -> !knownFiles.contains(mediaPath.relativize(path).toString())).collect(
+				Collectors.toSet());
 	}
 
 
